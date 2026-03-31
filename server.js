@@ -7,7 +7,7 @@ const app = express();
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 app.use(cors({
-  origin: "http://localhost:5500",
+  origin: "http://www.cncdxffiles.co.uk",
   methods: ["GET", "POST"],
   allowedHeaders: ["Content-Type"]
 }));
