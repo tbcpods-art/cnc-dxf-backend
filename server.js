@@ -11,7 +11,10 @@ app.use(cors({
   methods: ["GET", "POST"],
   allowedHeaders: ["Content-Type"]
 }));
-app.options("/", cors());
+
+// ✅ THIS LINE FIXES YOUR ERROR
+app.use(express.json());
+
 app.post("/create-checkout-session", async (req, res) => {
   try {
     const cart = req.body.cart;
@@ -31,8 +34,8 @@ app.post("/create-checkout-session", async (req, res) => {
       payment_method_types: ["card"],
       mode: "payment",
       line_items,
-      success_url: "http://localhost:5500/success.html",
-      cancel_url: "http://localhost:5500/cart.html"
+      success_url: "http://www.cncdxffiles.co.uk/index.html",
+      cancel_url: "http://www.cncdxffiles.co.uk/cart.html"
     });
 
     res.json({ url: session.url });
