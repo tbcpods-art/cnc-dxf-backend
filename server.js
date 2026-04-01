@@ -7,7 +7,7 @@ const app = express();
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 app.use(cors({
-  origin: "http://www.cncdxffiles.co.uk",
+  origin: "https://www.cncdxffiles.co.uk",
   methods: ["GET", "POST"],
   allowedHeaders: ["Content-Type"]
 }));
@@ -34,8 +34,8 @@ app.post("/create-checkout-session", async (req, res) => {
       payment_method_types: ["card"],
       mode: "payment",
       line_items,
-      success_url: "http://www.cncdxffiles.co.uk/index.html",
-      cancel_url: "http://www.cncdxffiles.co.uk/cart.html"
+      success_url: "https://www.cncdxffiles.co.uk/success.html",
+      cancel_url: "https://www.cncdxffiles.co.uk/cart.html"
     });
 
     res.json({ url: session.url });
