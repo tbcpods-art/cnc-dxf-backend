@@ -1,3 +1,63 @@
+import Stripe from "stripe";
+import crypto from "crypto";
+import express from "express";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const app = express();
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+app.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+  const sig = req.headers["stripe-signature"];
+
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // ✅ Payment successful
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+
+    // Generate secure token
+    const token = crypto.randomBytes(32).toString("hex");
+
+    // 24-hour expiry
+    const expiry = Date.now() + 24 * 60 * 60 * 1000;
+
+    console.log("✅ Payment received");
+    console.log("Token:", token);
+
+    // TEMP: just log download link for now
+    console.log(
+      "Download link:",
+      `https://your-app.onrender.com/download?token=${token}`
+    );
+
+    // NOTE: DB saving will come next step
+  }
+
+  res.json({ received: true });
+});
+
+app.get("/download", (req, res) => {
+  const { token } = req.query;
+
+  if (!token) {
+    return res.status(400).send("Missing token");
+  }
+
+  res.send("Download endpoint reached with token: " + token);
+});
+
 const express = require("express");
 const Stripe = require("stripe");
 const cors = require("cors");
