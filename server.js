@@ -12,7 +12,6 @@ app.use(cors({
   allowedHeaders: ["Content-Type"]
 }));
 
-// ✅ THIS LINE FIXES YOUR ERROR
 app.use(express.json());
 
 app.post("/create-checkout-session", async (req, res) => {
@@ -47,3 +46,7 @@ app.post("/create-checkout-session", async (req, res) => {
 });
 
 app.listen(3000, () => console.log("Server running on port 3000"));
+
+app.get("/", (req, res) => {
+  res.send("Backend is working ✅");
+});
