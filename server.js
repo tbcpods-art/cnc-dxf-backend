@@ -58,7 +58,7 @@ app.post(
       cart.forEach((item) => {
         const fileName = productFiles[item.id];
         if (fileName) {
-          files.push(`./files/${productFiles[item.id]}`);
+         files.push(productFiles[item.id]);
         }
       });
 
