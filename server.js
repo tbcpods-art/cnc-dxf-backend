@@ -93,7 +93,6 @@ app.post(
       </a>
     `
   });
-}
 
         console.log("📩 Email sent to:", customerEmail);
       }
