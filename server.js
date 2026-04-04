@@ -132,6 +132,8 @@ app.get("/get-download-token", (req, res) => {
 // ==========================
 // DOWNLOAD
 // ==========================
+import archiver from "archiver";
+
 app.get("/download", (req, res) => {
   const { token } = req.query;
 
@@ -148,19 +150,39 @@ app.get("/download", (req, res) => {
     return res.status(403).send("Link expired");
   }
 
-  const filePath = record.files?.[0];
+  const files = record.files;
 
-  if (!filePath) {
-    return res.status(500).send("No file found for this order");
+  if (!files || files.length === 0) {
+    return res.status(500).send("No files found for this order");
   }
 
-  const fullPath = path.join(process.cwd(), filePath);
+  // 📦 ZIP headers
+  res.setHeader("Content-Type", "application/zip");
+  res.setHeader(
+    "Content-Disposition",
+    "attachment; filename=cnc-files.zip"
+  );
 
-  if (!fs.existsSync(fullPath)) {
-    return res.status(404).send("File not found on server");
-  }
+  const archive = archiver("zip", { zlib: { level: 9 } });
 
-  res.download(fullPath);
+  archive.on("error", (err) => {
+    console.error("ZIP error:", err);
+    res.status(500).send("Download failed");
+  });
+
+  archive.pipe(res);
+
+  files.forEach((filePath) => {
+    const fullPath = path.join(process.cwd(), filePath);
+
+    if (fs.existsSync(fullPath)) {
+      archive.file(fullPath, { name: path.basename(fullPath) });
+    } else {
+      console.log("❌ Missing file:", fullPath);
+    }
+  });
+
+  archive.finalize();
 });
 
 // ==========================
