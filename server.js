@@ -5,18 +5,17 @@ import dotenv from "dotenv";
 import cors from "cors";
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 dotenv.config();
 
 const app = express();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-// ✅ Webhook MUST use raw body and be defined BEFORE JSON parsing for that route
+// ✅ Webhook
 app.post(
   "/webhook",
   express.raw({ type: "application/json" }),
- async (req, res) => {
+  async (req, res) => {
     const sig = req.headers["stripe-signature"];
 
     let event;
@@ -35,36 +34,41 @@ app.post(
     console.log("🔥 Webhook hit");
     console.log("Event type:", event.type);
 
-if (event.type === "checkout.session.completed") {
-  console.log("✅ Payment received");
+    if (event.type === "checkout.session.completed") {
+      console.log("✅ Payment received");
 
-  const session = event.data.object;
+      const session = event.data.object;
 
-  const token = crypto.randomBytes(32).toString("hex");
+      const token = crypto.randomBytes(32).toString("hex");
 
-  const downloadLink = `https://cnc-dxf-backend.onrender.com/download?token=${token}`;
+      const downloadLink = `https://cnc-dxf-backend.onrender.com/download?token=${token}`;
 
-  console.log("Download link:", downloadLink);
+      console.log("Download link:", downloadLink);
 
-  const customerEmail = session.customer_details?.email;
+      const customerEmail = session.customer_details?.email;
 
-  if (customerEmail) {
-    await resend.emails.send({
-      from: "onboarding@resend.dev",
-      to: customerEmail,
-      subject: "Your Download Link",
-      html: `
-        <h2>Thanks for your purchase</h2>
-        <p>Your download link (valid 24 hours):</p>
-        <a href="${downloadLink}">${downloadLink}</a>
-      `
-    });
+      if (customerEmail) {
+        await resend.emails.send({
+          from: "onboarding@resend.dev",
+          to: customerEmail,
+          subject: "Your Download Link",
+          html: `
+            <h2>Thanks for your purchase</h2>
+            <p>Your download link (valid 24 hours):</p>
+            <a href="${downloadLink}">${downloadLink}</a>
+          `
+        });
 
-    console.log("📩 Email sent to:", customerEmail);
+        console.log("📩 Email sent to:", customerEmail);
+      }
+    }
+
+    // ✅ THIS WAS MISSING
+    res.json({ received: true });
   }
-}
+);
 
-// ✅ Apply middleware AFTER webhook route
+// ✅ Middleware AFTER webhook
 app.use(express.json());
 app.use(cors());
 
@@ -73,12 +77,12 @@ app.get("/", (req, res) => {
   res.send("Backend is working ✅");
 });
 
-// Download endpoint (placeholder for now)
+// Download endpoint
 app.get("/download", (req, res) => {
   res.send("Download endpoint reached");
 });
 
-// Create Stripe checkout session
+// Checkout session
 app.post("/create-checkout-session", async (req, res) => {
   const cart = req.body.cart;
 
@@ -107,4 +111,5 @@ app.post("/create-checkout-session", async (req, res) => {
 });
 
 // Start server
-app.listen(3000, () => console.log("Server running on port 3000"));  
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("Server running on port", PORT));
