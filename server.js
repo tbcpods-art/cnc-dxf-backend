@@ -77,24 +77,23 @@ app.post(
 
       const customerEmail = session.customer_details?.email;
 
-      if (customerEmail) {
-        await resend.emails.send({
-          from: "sales@cncdxffiles.co.uk",
-          to: customerEmail,
-          subject: "Your Download Link",
-          <h2>Thanks for your purchase 🎉</h2>
+     if (customerEmail) {
+  await resend.emails.send({
+    from: "sales@cncdxffiles.co.uk",
+    to: customerEmail,
+    subject: "Your Download Link",
+    html: `
+      <h2>Thanks for your purchase 🎉</h2>
 
-<p>Your download link is valid for 24 hours:</p>
+      <p>Your download link is valid for 24 hours:</p>
 
-<a> href="https://cnc-dxf-backend.onrender.com/download?token=YOUR_TOKEN"
-   style="display:inline-block;padding:12px 20px;background:#28a745;color:#fff;text-decoration:none;border-radius:6px;"
-   ⬇️ Download Your Files
-</a>
-
-<p>If the button doesn't work, copy and paste this link:</p>
-<p>https://cnc-dxf-backend.onrender.com/download?token=YOUR_TOKEN</p>
-          `
-        });
+      <a href="https://cnc-dxf-backend.onrender.com/download?token=${token}"
+         style="display:inline-block;padding:12px 20px;background:#28a745;color:#fff;text-decoration:none;border-radius:6px;">
+         ⬇️ Download Your Files
+      </a>
+    `
+  });
+}
 
         console.log("📩 Email sent to:", customerEmail);
       }
