@@ -107,29 +107,47 @@ app.get("/", (req, res) => {
 app.get("/download", (req, res) => {
   const { token } = req.query;
 
+  console.log("🔑 Token received:", token);
+
   if (!token || !downloads[token]) {
+    console.log("❌ Invalid token");
     return res.status(404).send("Invalid or expired link");
   }
 
   const record = downloads[token];
 
-  // ⏳ Expiry check
+  console.log("📦 Record:", record);
+
   if (Date.now() > record.expires) {
+    console.log("⏳ Token expired");
     delete downloads[token];
     return res.status(403).send("Link expired");
   }
 
-  // 🔥 For now: send first file (we can upgrade to ZIP next)
-  const filePath = path.resolve(record.files[0]);
+  const fileRelativePath = record.files?.[0];
+
+  console.log("📁 File (relative):", fileRelativePath);
+
+  if (!fileRelativePath) {
+    return res.status(500).send("No file found for this order");
+  }
+
+  const filePath = path.join(process.cwd(), fileRelativePath);
+
+  console.log("📂 Full path:", filePath);
+
+  if (!fs.existsSync(filePath)) {
+    console.log("❌ File does not exist on server");
+    return res.status(404).send("File not found on server");
+  }
 
   res.download(filePath, (err) => {
     if (err) {
-      console.error("Download error:", err);
-      res.status(500).send("Download failed");
+      console.error("❌ Download error:", err);
+      return res.status(500).send("Download failed");
     }
   });
 });
-
 // Checkout session
 app.post("/create-checkout-session", async (req, res) => {
   const cart = req.body.cart;
