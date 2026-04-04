@@ -3,6 +3,9 @@ import Stripe from "stripe";
 import crypto from "crypto";
 import dotenv from "dotenv";
 import cors from "cors";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 dotenv.config();
 
@@ -13,7 +16,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 app.post(
   "/webhook",
   express.raw({ type: "application/json" }),
-  (req, res) => {
+ async (req, res) => {
     const sig = req.headers["stripe-signature"];
 
     let event;
@@ -32,22 +35,34 @@ app.post(
     console.log("🔥 Webhook hit");
     console.log("Event type:", event.type);
 
-    if (event.type === "checkout.session.completed") {
-      console.log("✅ Payment received");
+if (event.type === "checkout.session.completed") {
+  console.log("✅ Payment received");
 
-      const token = crypto.randomBytes(32).toString("hex");
+  const session = event.data.object;
 
-      console.log("Token:", token);
+  const token = crypto.randomBytes(32).toString("hex");
 
-      console.log(
-        "Download link:",
-        `https://cnc-dxf-backend.onrender.com/download?token=${token}`
-      );
-    }
+  const downloadLink = `https://cnc-dxf-backend.onrender.com/download?token=${token}`;
 
-    res.json({ received: true });
+  console.log("Download link:", downloadLink);
+
+  const customerEmail = session.customer_details?.email;
+
+  if (customerEmail) {
+    await resend.emails.send({
+      from: "onboarding@resend.dev",
+      to: customerEmail,
+      subject: "Your Download Link",
+      html: `
+        <h2>Thanks for your purchase</h2>
+        <p>Your download link (valid 24 hours):</p>
+        <a href="${downloadLink}">${downloadLink}</a>
+      `
+    });
+
+    console.log("📩 Email sent to:", customerEmail);
   }
-);
+}
 
 // ✅ Apply middleware AFTER webhook route
 app.use(express.json());
@@ -92,4 +107,4 @@ app.post("/create-checkout-session", async (req, res) => {
 });
 
 // Start server
-app.listen(3000, () => console.log("Server running on port 3000"));
+app.listen(3000, () => console.log("Server running on port 3000"));  
