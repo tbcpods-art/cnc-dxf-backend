@@ -65,11 +65,11 @@ app.post(
 
       downloads[token] = {
         files,
-        expires: Date.now() + 24 * 60 * 60 * 1000
+        expires: Date.now() + 24 * 60 * 60 * 1000,
+        sessionId: session.id
       };
 
       // 🔗 Link token to session
-      downloads[session.id] = token;
 
       const downloadLink = `https://cnc-dxf-backend.onrender.com/download?token=${token}`;
 
@@ -116,11 +116,15 @@ app.get("/", (req, res) => {
 app.get("/get-download-token", (req, res) => {
   const { session_id } = req.query;
 
-  if (!session_id || !downloads[session_id]) {
-    return res.status(404).send("No download found");
+  const entry = Object.entries(downloads).find(
+    ([token, data]) => data.sessionId === session_id
+  );
+
+  if (!entry) {
+    return res.status(404).json({ error: "Token not found" });
   }
 
-  const token = downloads[session_id];
+  const [token] = entry;
 
   res.json({ token });
 });
@@ -130,6 +134,8 @@ app.get("/get-download-token", (req, res) => {
 // ==========================
 app.get("/download", (req, res) => {
   const { token } = req.query;
+
+  console.log("🔑 Token:", token);
 
   if (!token || !downloads[token]) {
     return res.status(404).send("Invalid or expired link");
@@ -142,19 +148,19 @@ app.get("/download", (req, res) => {
     return res.status(403).send("Link expired");
   }
 
-  const fileRelativePath = record.files?.[0];
+  const filePath = record.files?.[0];
 
-  if (!fileRelativePath) {
+  if (!filePath) {
     return res.status(500).send("No file found for this order");
   }
 
-  const filePath = path.join(process.cwd(), fileRelativePath);
+  const fullPath = path.join(process.cwd(), filePath);
 
-  if (!fs.existsSync(filePath)) {
+  if (!fs.existsSync(fullPath)) {
     return res.status(404).send("File not found on server");
   }
 
-  res.download(filePath);
+  res.download(fullPath);
 });
 
 // ==========================
