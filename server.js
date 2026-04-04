@@ -137,8 +137,6 @@ import archiver from "archiver";
 app.get("/download", (req, res) => {
   const { token } = req.query;
 
-  console.log("🔑 Token:", token);
-
   if (!token || !downloads[token]) {
     return res.status(404).send("Invalid or expired link");
   }
@@ -156,33 +154,30 @@ app.get("/download", (req, res) => {
     return res.status(500).send("No files found for this order");
   }
 
-  // 📦 ZIP headers
-  res.setHeader("Content-Type", "application/zip");
-  res.setHeader(
-    "Content-Disposition",
-    "attachment; filename=cnc-files.zip"
-  );
+  // Set the filename for the zip
+  res.setHeader("Content-Disposition", `attachment; filename="downloads.zip"`);
 
+  // Create a zip stream
   const archive = archiver("zip", { zlib: { level: 9 } });
 
-  archive.on("error", (err) => {
-    console.error("ZIP error:", err);
-    res.status(500).send("Download failed");
-  });
-
+  // Pipe archive data to the response
   archive.pipe(res);
 
-  files.forEach((filePath) => {
-    const fullPath = path.join(process.cwd(), filePath);
-
+  // Append all files
+  files.forEach(file => {
+    const fullPath = path.join(process.cwd(), file);
     if (fs.existsSync(fullPath)) {
-      archive.file(fullPath, { name: path.basename(fullPath) });
-    } else {
-      console.log("❌ Missing file:", fullPath);
+      archive.file(fullPath, { name: path.basename(file) });
     }
   });
 
+  // Finalize the archive
   archive.finalize();
+
+  archive.on("error", err => {
+    console.error("Zip error:", err);
+    res.status(500).send("Failed to create zip");
+  });
 });
 
 // ==========================
