@@ -155,7 +155,7 @@ app.get("/download", (req, res) => {
   }
 
   // Set the filename for the zip
-  res.setHeader("Content-Disposition", `attachment; filename="downloads.zip"`);
+  res.setHeader("Content-Disposition", `attachment; filename="cnc-dxf-files.zip"`);
 
   // Create a zip stream
   const archive = archiver("zip", { zlib: { level: 9 } });
