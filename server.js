@@ -79,7 +79,7 @@ app.post(
 
       if (customerEmail) {
         await resend.emails.send({
-          from: "onboarding@resend.dev",
+          from: "sales@cncdxffiles.co.uk",
           to: customerEmail,
           subject: "Your Download Link",
           html: `
