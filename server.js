@@ -19,7 +19,9 @@ const downloads = {};
 // 📦 Load product → file mapping
 const productFiles = JSON.parse(fs.readFileSync("./products.json"));
 
-// ✅ Webhook (RAW body must be first)
+// ==========================
+// ✅ WEBHOOK
+// ==========================
 app.post(
   "/webhook",
   express.raw({ type: "application/json" }),
@@ -39,26 +41,25 @@ app.post(
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
-    console.log("🔥 Webhook hit");
-    console.log("Event type:", event.type);
+    console.log("🔥 Webhook hit:", event.type);
 
     if (event.type === "checkout.session.completed") {
-      console.log("✅ Payment received");
-
       const session = event.data.object;
 
-      // 🧾 Get cart from metadata
-      const cart = JSON.parse(session.metadata.cart);
+      console.log("✅ Payment received");
+
+      const cart = JSON.parse(session.metadata.cart || "[]");
 
       const token = crypto.randomBytes(32).toString("hex");
 
       const files = [];
 
-      // 🔗 Map cart items → files
       cart.forEach((item) => {
-        const fileName = productFiles[item.id];
-        if (fileName) {
-         files.push(productFiles[item.id]);
+        const filePath = productFiles[item.id];
+        if (filePath) {
+          files.push(filePath);
+        } else {
+          console.log("❌ Missing product mapping for:", item.id);
         }
       });
 
@@ -67,9 +68,12 @@ app.post(
         expires: Date.now() + 24 * 60 * 60 * 1000
       };
 
+      // 🔗 Link token to session
+      downloads[session.id] = token;
+
       const downloadLink = `https://cnc-dxf-backend.onrender.com/download?token=${token}`;
 
-      console.log("Download link:", downloadLink);
+      console.log("🔗 Download link:", downloadLink);
 
       const customerEmail = session.customer_details?.email;
 
@@ -82,7 +86,6 @@ app.post(
             <h2>Thanks for your purchase</h2>
             <p>Your download link (valid 24 hours):</p>
             <a href="${downloadLink}">${downloadLink}</a>
-            <p>This link contains all your purchased files.</p>
           `
         });
 
@@ -94,39 +97,52 @@ app.post(
   }
 );
 
-// ✅ Middleware AFTER webhook
+// ==========================
+// ✅ NORMAL MIDDLEWARE
+// ==========================
 app.use(express.json());
 app.use(cors());
 
-// Test route
+// ==========================
+// TEST
+// ==========================
 app.get("/", (req, res) => {
   res.send("Backend is working ✅");
 });
 
-// 🔐 SECURE DOWNLOAD ROUTE
+// ==========================
+// GET TOKEN FROM SESSION
+// ==========================
+app.get("/get-download-token", (req, res) => {
+  const { session_id } = req.query;
+
+  if (!session_id || !downloads[session_id]) {
+    return res.status(404).send("No download found");
+  }
+
+  const token = downloads[session_id];
+
+  res.json({ token });
+});
+
+// ==========================
+// DOWNLOAD
+// ==========================
 app.get("/download", (req, res) => {
   const { token } = req.query;
 
-  console.log("🔑 Token received:", token);
-
   if (!token || !downloads[token]) {
-    console.log("❌ Invalid token");
     return res.status(404).send("Invalid or expired link");
   }
 
   const record = downloads[token];
 
-  console.log("📦 Record:", record);
-
   if (Date.now() > record.expires) {
-    console.log("⏳ Token expired");
     delete downloads[token];
     return res.status(403).send("Link expired");
   }
 
   const fileRelativePath = record.files?.[0];
-
-  console.log("📁 File (relative):", fileRelativePath);
 
   if (!fileRelativePath) {
     return res.status(500).send("No file found for this order");
@@ -134,21 +150,16 @@ app.get("/download", (req, res) => {
 
   const filePath = path.join(process.cwd(), fileRelativePath);
 
-  console.log("📂 Full path:", filePath);
-
   if (!fs.existsSync(filePath)) {
-    console.log("❌ File does not exist on server");
     return res.status(404).send("File not found on server");
   }
 
-  res.download(filePath, (err) => {
-    if (err) {
-      console.error("❌ Download error:", err);
-      return res.status(500).send("Download failed");
-    }
-  });
+  res.download(filePath);
 });
-// Checkout session
+
+// ==========================
+// STRIPE CHECKOUT
+// ==========================
 app.post("/create-checkout-session", async (req, res) => {
   const cart = req.body.cart;
 
@@ -166,10 +177,11 @@ app.post("/create-checkout-session", async (req, res) => {
       mode: "payment",
       line_items,
 
-      success_url: "https://www.cncdxffiles.co.uk/success.html",
+      success_url:
+        "https://www.cncdxffiles.co.uk/success.html?session_id={CHECKOUT_SESSION_ID}",
+
       cancel_url: "https://www.cncdxffiles.co.uk/cart.html",
 
-      // 🔥 Store cart for webhook
       metadata: {
         cart: JSON.stringify(cart)
       }
@@ -177,11 +189,11 @@ app.post("/create-checkout-session", async (req, res) => {
 
     res.json({ url: session.url });
   } catch (err) {
-    console.error("Stripe session error:", err.message);
-    res.status(500).send("Checkout session failed");
+    console.error(err);
+    res.status(500).send("Checkout failed");
   }
 });
 
-// Start server
+// ==========================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Server running on port", PORT));
